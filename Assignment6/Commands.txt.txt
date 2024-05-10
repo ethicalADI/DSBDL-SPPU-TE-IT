@@ -1,0 +1,6 @@
+Enter the following command in the VM Terminal after creating the necessary files 
+gedit mapper.py
+gedit text.txt
+cat word.txt | python mapper.py 
+gedit reducer.py
+cat word.txt | python mapper.py | sort | python reducer.py

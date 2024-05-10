@@ -1,0 +1,101 @@
+# Open a new terminal and enter HBase shell
+$ hbase shell
+
+# Create an HBase table named 'hbase_flight' with a column family 'cf'
+hbase(main):001:0> create 'hbase_flight', 'cf'
+
+# Scan the 'hbase_flight' table in the HBase shell to verify the data
+hbase(main):002:0> scan 'hbase_flight'
+
+
+# Open another terminal and enter Hive
+$ hive
+
+# Create a new database named 'db' in Hive
+hive> CREATE DATABASE IF NOT EXISTS db;
+
+# Switch to the 'db' database
+hive> USE db;
+
+# Create a Hive table named 'flight' with columns 'fno', 'year', 'dest', 'delay'
+hive> CREATE TABLE air_flight(fno INT, year INT, dest VARCHAR(10), delay FLOAT);
+
+# Rename the table from 'air_flight' to 'flight'
+hive> ALTER TABLE air_flight RENAME TO flight;
+
+# Add a new column named 'source' to the 'flight' table
+hive> ALTER TABLE flight ADD COLUMNS (source VARCHAR(10));
+
+# Change the name of the column 'source' to 'src'
+hive> ALTER TABLE flight CHANGE source src VARCHAR(10);
+
+# Drop the 'flight' table
+hive> DROP TABLE flight;
+
+# Create a new Hive table named 'flight' with columns 'fno', 'year', 'dest', 'delay'
+# Use 'row format delimited' and specify the delimiter
+hive> CREATE TABLE flight (
+    fno INT,
+    year INT,
+    dest VARCHAR(10),
+    delay FLOAT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+# Create a text file named 'flight_data.txt' containing the flight data and place it in the HOME directory
+
+# Load data from the local file 'flight_data.txt' into the 'flight' table
+hive> LOAD DATA LOCAL INPATH 'flight_data.txt' OVERWRITE INTO TABLE flight;
+
+#show data
+hive>SELECT * FROM flight;
+
+# Create an external Hive table named 'hflight' mapped to HBase
+hive> CREATE EXTERNAL TABLE hflight(
+    fno INT,
+    year INT,
+    dest VARCHAR(10),
+    delay FLOAT
+)
+STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+WITH SERDEPROPERTIES ("hbase.columns.mapping" = ":key, cf:year, cf:dest, cf:delay")
+TBLPROPERTIES ("hbase.table.name" = "hbase_flight");
+
+# Insert data from the 'flight' table into the HBase-backed 'hflight' table
+hive> INSERT INTO hflight SELECT * FROM flight;
+
+#show data
+hive>SELECT * FROM hflight;
+
+
+# Create another Hive table named 'n_flight' with columns 'fno', 'year', 'source'
+hive> CREATE TABLE n_flight (
+    fno INT,
+    year INT,
+    source VARCHAR(10)
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+# Load data from the local file 'n_flight_data.txt' into the 'n_flight' table
+hive> LOAD DATA LOCAL INPATH 'n_flight_data.txt' OVERWRITE INTO TABLE n_flight;
+
+# Join the 'flight' table with the 'n_flight' table on the 'fno' column and select relevant columns
+hive> SELECT a.fno, a.year, a.dest, a.delay, b.source
+     > FROM flight a JOIN n_flight b ON (a.fno = b.fno);
+
+# Create an index named 'flight_index' on the 'fno' column of the 'flight' table
+hive> CREATE INDEX flight_index ON TABLE flight(fno)
+    > AS 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler'
+    > WITH DEFERRED REBUILD;
+
+# Rebuild the index
+hive> ALTER INDEX flight_index ON flight REBUILD;
+
+# Find the average delay for the year 2008
+hive> SELECT AVG(delay) FROM flight WHERE year = 2008;
